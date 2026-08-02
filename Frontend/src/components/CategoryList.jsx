@@ -1,89 +1,77 @@
-import React, { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faBowlRice, faUtensils, faOilCan, faBottleWater, faBoxOpen, faSoap, faEgg, faLeaf, faCandyCane,
-} from "@fortawesome/free-solid-svg-icons";
-import { faPagelines } from "@fortawesome/free-brands-svg-icons";
-import { fetchCategories } from "../api/api";
+import { faArrowRight } from "@fortawesome/free-solid-svg-icons";
+import { categories as fallbackCategories } from "../data/categories";
+import { getCategoryLabel, getCategoryMeta, TINT_CLASSES } from "../lib/catalog";
 
-const categoryIcons = {
-  Rice: faBowlRice,
-  Daal: faUtensils,
-  Aata: faPagelines,
-  Oil: faOilCan,
-  Beverages: faBottleWater,
-  Noodles: faBoxOpen,
-  Soap: faSoap,
-  Surf: faBoxOpen,
-  Chiyapatti: faLeaf,
-  Icepop: faCandyCane,
-  Egg: faEgg,
-};
+function CategoryList({ categories = [], isLoading, selectedCategory, onSelect }) {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <div
+            key={index}
+            className="h-32 animate-pulse rounded-lg border border-border bg-card"
+          />
+        ))}
+      </div>
+    );
+  }
 
-const categoryColors = {
-  Rice: "#eab308",
-  Daal: "#a3e635",
-  Aata: "#fbbf24",
-  Oil: "#f59e42",
-  Beverages: "#38bdf8",
-  Noodles: "#f87171",
-  Soap: "#a78bfa",
-  Surf: "#f472b6",
-  Chiyapatti: "#22c55e",
-  Icepop: "#f43f5e",
-  Egg: "#fde68a",
-  default: "#64748b",
-};
-
-function CategoryList({ selectedCategory, setSelectedCategory }) {
-  const [categories, setCategories] = useState([]);
-
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const fetched = await fetchCategories();
-        console.log("Fetched categories structure:", fetched);
-        // Use the name from the fetched array of objects
-        setCategories(fetched.map(cat => cat.name) || []);
-      } catch (error) {
-        console.error("Error loading categories:", error);
-        setCategories([]);
-      }
-    };
-    loadCategories();
-  }, []);
+  // Fall back to the static list if the API returned nothing, so the page is never blank.
+  const items =
+    categories.length > 0
+      ? categories
+      : fallbackCategories.map((name) => ({ name, displayName: name, count: null }));
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4 bg-white/60 backdrop-blur-sm rounded-xl shadow-lg border border-white/30">
-      {categories.map(name => {
-        const iconColor = categoryColors[name] || categoryColors.default;
-        const isSelected = selectedCategory === name;
+    <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      {items.map((category) => {
+        const meta = getCategoryMeta(category.name);
+        const isSelected = selectedCategory === category.name;
 
         return (
-          <button
-            type="button"
-            key={name}
-            onClick={() => setSelectedCategory(name)}
-            className={`flex flex-col items-center justify-center w-full h-20 rounded-lg transition-all duration-300 ${
-              isSelected
-                ? 'bg-gradient-to-br from-violet-500/20 to-purple-500/20 scale-105 text-white'
-                : 'hover:bg-white/10 hover:scale-105'
-            }`}
-            aria-label={`Select ${name}`}
-          >
-            <div className="text-2xl mb-2 animate-[pulse-gentle_3s_ease-in-out_infinite]">
-              <FontAwesomeIcon
-                icon={categoryIcons[name] || faBoxOpen}
-                style={{ color: iconColor }}
-              />
-            </div>
-            <span className="text-sm font-medium text-gray-800 animate-[fade-in-up_1s_ease-out]">
-              {name}
-            </span>
-          </button>
+          <li key={category.name}>
+            <button
+              type="button"
+              onClick={() => onSelect(category.name)}
+              aria-pressed={isSelected}
+              className={`group flex h-full w-full flex-col items-start gap-3 rounded-lg border p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift ${
+                isSelected
+                  ? "border-primary bg-primary-soft"
+                  : "border-border bg-card hover:border-primary/40"
+              }`}
+            >
+              <span
+                className={`flex h-12 w-12 items-center justify-center rounded-full ${
+                  TINT_CLASSES[meta.tint]
+                }`}
+              >
+                <FontAwesomeIcon icon={meta.icon} className="h-5 w-5" />
+              </span>
+
+              <span className="flex-1">
+                <span className="block font-display text-[15px] font-bold text-card-foreground">
+                  {getCategoryLabel(category.name)}
+                </span>
+                {category.count !== null && (
+                  <span className="mt-0.5 block text-xs font-medium tabular-nums text-muted-foreground">
+                    {category.count} {category.count === 1 ? "product" : "products"}
+                  </span>
+                )}
+              </span>
+
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                Shop now
+                <FontAwesomeIcon
+                  icon={faArrowRight}
+                  className="h-2.5 w-2.5 transition-transform duration-200 group-hover:translate-x-1"
+                />
+              </span>
+            </button>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
 

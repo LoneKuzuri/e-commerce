@@ -1,135 +1,133 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Header from "./components/Header";
 import BottomNav from "./components/BottomNav";
 import Home from "./Pages/Home";
 import Categories from "./Pages/Categories";
 import Cart from "./Pages/Cart";
 import Profile from "./Pages/Profile";
-import ProductList from "./components/ProductList";
+import { useCatalog } from "./hooks/useCatalog";
 import "./index.css";
 
 function App() {
   const [activeTab, setActiveTab] = useState("home");
   const [searchQuery, setSearchQuery] = useState("");
-  const [cart, setCart] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [cart, setCart] = useState([]);
 
-  // Add to cart
-  const addToCart = (product, quantity = 1) => {
+  const { products, categories, isLoading, error, reload } = useCatalog();
+
+  // Scroll back to the top whenever the tab changes so each view starts fresh.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeTab]);
+
+  const addToCart = useCallback((product, quantity = 1) => {
+    if (!product?.id) return;
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
         return prev.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
+          item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item
         );
       }
       return [...prev, { ...product, quantity }];
     });
-  };
+  }, []);
 
-  // Update cart quantity
-  const updateCartQuantity = (id, newQuantity) => {
-    if (newQuantity <= 0) {
-      removeFromCart(id);
-      return;
-    }
-    setCart((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      )
-    );
-  };
-
-  // Remove from cart
-  const removeFromCart = (id) => {
+  const removeFromCart = useCallback((id) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
-  };
+  }, []);
 
-  // Get cart item quantity
-  const getCartItemQuantity = (productId) => {
-    const item = cart.find((item) => item.id === productId);
-    return item ? item.quantity : 0;
-  };
+  const updateCartQuantity = useCallback(
+    (id, newQuantity) => {
+      if (newQuantity <= 0) {
+        removeFromCart(id);
+        return;
+      }
+      setCart((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item))
+      );
+    },
+    [removeFromCart]
+  );
 
-  // Totals
-  const getTotalItems = () => cart.reduce((sum, item) => sum + item.quantity, 0);
-  const getTotalPrice = () =>
-    cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const clearCart = useCallback(() => setCart([]), []);
 
-  // Clear cart
-  const clearCart = () => {
-    setCart([]);
+  const getCartItemQuantity = useCallback(
+    (productId) => cart.find((item) => item.id === productId)?.quantity ?? 0,
+    [cart]
+  );
+
+  const totalItems = useMemo(
+    () => cart.reduce((sum, item) => sum + item.quantity, 0),
+    [cart]
+  );
+
+  const totalPrice = useMemo(
+    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [cart]
+  );
+
+  /** Jump to the catalogue, optionally filtered to a single category. */
+  const browseCategory = useCallback((category) => {
+    setSelectedCategory(category);
+    setActiveTab("home");
+  }, []);
+
+  const catalogProps = {
+    products,
+    categories,
+    isLoading,
+    error,
+    reload,
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setSelectedCategory,
+    addToCart,
+    updateCartQuantity,
+    getCartItemQuantity,
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      {/* ✅ Top Header with Live Search */}
+    <div className="flex min-h-screen flex-col bg-background">
       <Header
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        getTotalItems={getTotalItems}
-        getTotalPrice={getTotalPrice}
-        clearCart={clearCart}
+        totalItems={totalItems}
+        totalPrice={totalPrice}
+        activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
 
-      {/* ✅ Main Content Area */}
-      <main className="flex-1 p-4 bg-white">
-        {activeTab === "home" && (
-          <div className="mb-8 animate-fadeIn product-list-section">
-            <Home
-              setActiveTab={setActiveTab}
-              setSelectedCategory={setSelectedCategory}
-              addToCart={addToCart}
-            />
-            <ProductList
-              cart={cart}
-              addToCart={addToCart}
-              getCartItemQuantity={getCartItemQuantity}
-              updateCartQuantity={updateCartQuantity}
-              searchQuery={searchQuery}
-              selectedCategory={selectedCategory} // Sync category filter
-            />
-          </div>
-        )}
+      <main className="flex-1 pb-28 lg:pb-12">
+        {activeTab === "home" && <Home {...catalogProps} onBrowseCategory={browseCategory} />}
 
         {activeTab === "categories" && (
-          <div className="mb-8 animate-fadeIn">
-            <Categories
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              addToCart={addToCart}
-              getCartItemQuantity={getCartItemQuantity}
-              updateCartQuantity={updateCartQuantity}
-              setActiveTab={setActiveTab}
-            />
-          </div>
+          <Categories
+            categories={categories}
+            isLoading={isLoading}
+            selectedCategory={selectedCategory}
+            onBrowseCategory={browseCategory}
+          />
         )}
 
         {activeTab === "cart" && (
-          <div className="mb-8 animate-fadeIn">
-            <Cart
-              cart={cart}
-              updateCartQuantity={updateCartQuantity}
-              removeFromCart={removeFromCart}
-              getTotalItems={getTotalItems}
-              getTotalPrice={getTotalPrice}
-              setActiveTab={setActiveTab}
-            />
-          </div>
+          <Cart
+            cart={cart}
+            updateCartQuantity={updateCartQuantity}
+            removeFromCart={removeFromCart}
+            clearCart={clearCart}
+            totalItems={totalItems}
+            totalPrice={totalPrice}
+            setActiveTab={setActiveTab}
+          />
         )}
 
-        {activeTab === "profile" && (
-          <div className="mb-8 animate-fadeIn">
-            <Profile />
-          </div>
-        )}
+        {activeTab === "profile" && <Profile />}
       </main>
 
-      {/* ✅ Bottom Navigation */}
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} cartCount={totalItems} />
     </div>
   );
 }
