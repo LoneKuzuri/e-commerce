@@ -1,131 +1,176 @@
-import React from 'react';
-import CartItem from "../components/CartItem";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faShoppingCart } from "@fortawesome/free-solid-svg-icons";
+import { faBagShopping, faArrowLeft, faTruckFast } from "@fortawesome/free-solid-svg-icons";
+import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
+import CartItem from "../components/CartItem";
+import { formatPrice } from "../lib/catalog";
 
-function Cart({ cart, updateCartQuantity, removeFromCart, getTotalItems, getTotalPrice, setActiveTab }) {
-  const handleStartShopping = () => {
-    setActiveTab('home');
-    
-    setTimeout(() => {
-      const productList = document.querySelector('.product-list-section');
-      if (productList) {
-        productList.scrollIntoView({ behavior: 'smooth' });
-      }
-    }, 100);
-  };
+const WHATSAPP_NUMBER = "9779857032030";
+const FREE_DELIVERY_THRESHOLD = 2000;
+
+function Cart({
+  cart,
+  updateCartQuantity,
+  removeFromCart,
+  clearCart,
+  totalItems,
+  totalPrice,
+  setActiveTab,
+}) {
+  const qualifiesForFreeDelivery = totalPrice >= FREE_DELIVERY_THRESHOLD;
+  const remainingForFreeDelivery = Math.max(FREE_DELIVERY_THRESHOLD - totalPrice, 0);
 
   const handleWhatsAppOrder = () => {
-    const whatsappNumber = "9779857032030"; 
-    const message = `Order Details:\n\n${cart
-      .map((item) => `${item.name} - Rs. ${item.price} x ${item.quantity} = Rs. ${item.price * item.quantity}`)
-      .join('\n')}\n\nTotal: Rs. ${getTotalPrice().toLocaleString()}\nPlease confirm my order!`;
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+    const lines = cart
+      .map(
+        (item) =>
+          `• ${item.name} — ${formatPrice(item.price)} × ${item.quantity} = ${formatPrice(
+            item.price * item.quantity
+          )}`
+      )
+      .join("\n");
+
+    const message = [
+      "Hello Subha OM Enterprises, I would like to place an order:",
+      "",
+      lines,
+      "",
+      `Total (${totalItems} ${totalItems === 1 ? "item" : "items"}): ${formatPrice(totalPrice)}`,
+      "",
+      "Please confirm my order. Thank you!",
+    ].join("\n");
+
+    window.open(
+      `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
   };
 
-  return (
-    <section className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-indigo-50 relative overflow-hidden py-8">
-   
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-10 left-20 w-40 h-40 bg-gradient-to-r from-violet-400/20 to-purple-400/20 rounded-full animate-[float-gentle_12s_ease-in-out_infinite]"></div>
-        <div className="absolute top-32 right-16 w-28 h-28 bg-gradient-to-r from-indigo-400/20 to-blue-400/20 rounded-full animate-[float-reverse-gentle_10s_ease-in-out_infinite_2s]"></div>
-        <div className="absolute bottom-24 left-1/3 w-36 h-36 bg-gradient-to-r from-pink-400/20 to-rose-400/20 rounded-full animate-[float-slow-gentle_14s_ease-in-out_infinite_4s]"></div>
-        <div className="absolute bottom-40 right-1/4 w-32 h-32 bg-gradient-to-r from-teal-400/20 to-cyan-400/20 rounded-full animate-[float-delayed-gentle_8s_ease-in-out_infinite_6s]"></div>
-      </div>
-
-      {/* Header Section */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6">
-        <div className="text-center animate-[fade-in-down_1s_ease-out]">
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-4 animate-[text-shimmer_3s_ease-in-out_infinite]">
-            Shopping Cart
-          </h2>
-          <div className="flex items-center justify-center space-x-4 mb-6 animate-[slide-in-up_1s_ease-out_0.3s]">
-            <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-violet-500 to-transparent animate-[expand-horizontal_1.5s_ease-out]"></div>
-            <div className="flex space-x-2">
-              <div className="w-2 h-2 bg-violet-500 rounded-full animate-[pulse_2s_ease-in-out_infinite_0.1s]"></div>
-              <div className="w-3 h-3 bg-purple-500 rounded-full animate-[pulse_2s_ease-in-out_infinite_0.2s]"></div>
-              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-[pulse_2s_ease-in-out_infinite_0.3s]"></div>
-            </div>
-            <div className="w-16 h-0.5 bg-gradient-to-l from-transparent via-indigo-500 to-transparent animate-[expand-horizontal_1.5s_ease-out]"></div>
+  // Empty state
+  if (cart.length === 0) {
+    return (
+      <section className="mx-auto max-w-2xl px-4 py-16 sm:px-6 lg:py-24">
+        <div className="flex animate-fade-up flex-col items-center gap-5 rounded-lg border border-dashed border-border bg-card px-6 py-14 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft text-primary">
+            <FontAwesomeIcon icon={faBagShopping} className="h-6 w-6" />
+          </span>
+          <div>
+            <h1 className="font-display text-2xl font-extrabold text-card-foreground">
+              Your cart is empty
+            </h1>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+              Add rice, oil, lentils or any daily staple and we&apos;ll get your order ready for
+              WhatsApp checkout.
+            </p>
           </div>
-          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed animate-[fade-in-up_1s_ease-out_0.5s]">
-            Review your selected items and proceed to checkout.
-            <span className="block mt-1 text-violet-600 font-semibold animate-[text-glow_2.5s_ease-in-out_infinite]">
-              Shop with confidence!
-            </span>
+          <button
+            type="button"
+            onClick={() => setActiveTab("home")}
+            className="flex h-11 items-center gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            <FontAwesomeIcon icon={faArrowLeft} className="h-3.5 w-3.5" />
+            Browse products
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:py-14">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            Your cart
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {totalItems} {totalItems === 1 ? "item" : "items"} ready to order
           </p>
         </div>
-      </div>
-
-      {/* Cart Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 pb-12">
-        {cart.length === 0 ? (
-          <div className="bg-white/60 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/30 p-8 text-center animate-[fade-in-up_1s_ease-out_0.7s]">
-            <div className="flex justify-center mb-6">
-              <FontAwesomeIcon 
-                icon={faShoppingCart} 
-                className="text-6xl text-violet-600 animate-[pulse-gentle_3s_ease-in-out_infinite]" 
-              />
-            </div>
-            <p className="text-xl text-gray-600 mb-6 animate-[fade-in_1s_ease-out_0.9s]">
-              Your cart is empty
-            </p>
-            <button
-              onClick={handleStartShopping}
-              className="bg-gradient-to-r from-violet-500 to-purple-600 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 animate-[scale-in_1s_ease-out]"
-            >
-              Start Shopping
-            </button>
-          </div>
-        ) : (
-          <div className="bg-white/60 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/30 p-8 animate-[scale-in_1s_ease-out]">
-            <div className="space-y-6 mb-8">
-              {cart.map((item) => (
-                <CartItem 
-                  key={item.id} 
-                  item={item} 
-                  updateCartQuantity={updateCartQuantity} 
-                  removeFromCart={removeFromCart} 
-                />
-              ))}
-            </div>
-            <div className="border-t border-gray-200 pt-6">
-              <div className="flex justify-between text-lg font-semibold text-gray-800 mb-4 animate-[fade-in-up_1s_ease-out_0.2s]">
-                <span>Total Items:</span>
-                <span>{getTotalItems()}</span>
-              </div>
-              <div className="flex justify-between text-xl font-bold text-gray-800 mb-6 animate-[fade-in-up_1s_ease-out_0.4s]">
-                <span>Total Price:</span>
-                <span>Rs. {getTotalPrice().toLocaleString()}</span>
-              </div>
-              <button
-                onClick={handleWhatsAppOrder}
-                className="w-full bg-gradient-to-r from-green-500 to-teal-600 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 animate-[scale-in_1s_ease-out_0.6s]"
-              >
-                Place Order via WhatsApp
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Floating Action Button */}
-      <div className="fixed bottom-8 right-8 z-50">
-        <button 
-          onClick={handleStartShopping} 
-          className="bg-gradient-to-r from-violet-500 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl transform hover:scale-110 transition-all duration-300 animate-[float_3s_ease-in-out_infinite] group"
+        <button
+          type="button"
+          onClick={clearCart}
+          className="rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive"
         >
-          <div className="flex items-center space-x-2">
-            <span className="text-2xl group-hover:animate-bounce">🛍️</span>
-            <span className="hidden sm:inline font-semibold">Continue Shopping</span>
-          </div>
+          Clear cart
         </button>
-      </div>
+      </header>
 
-      {/* Progress Indicator */}
-      <div className="fixed top-0 left-0 right-0 z-50">
-        <div className="h-1 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 animate-[slide-progress_3s_ease-in-out_infinite]"></div>
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px] lg:items-start">
+        {/* Line items */}
+        <ul className="space-y-3">
+          {cart.map((item) => (
+            <li key={item.id}>
+              <CartItem
+                item={item}
+                updateCartQuantity={updateCartQuantity}
+                removeFromCart={removeFromCart}
+              />
+            </li>
+          ))}
+        </ul>
+
+        {/* Order summary */}
+        <aside className="rounded-lg border border-border bg-card p-6 shadow-card lg:sticky lg:top-24">
+          <h2 className="font-display text-lg font-extrabold text-card-foreground">
+            Order summary
+          </h2>
+
+          <dl className="mt-5 space-y-3 text-sm">
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">Items</dt>
+              <dd className="font-semibold tabular-nums text-card-foreground">{totalItems}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">Subtotal</dt>
+              <dd className="font-semibold tabular-nums text-card-foreground">
+                {formatPrice(totalPrice)}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">Delivery</dt>
+              <dd className="font-semibold text-success">
+                {qualifiesForFreeDelivery ? "Free" : "Confirmed on call"}
+              </dd>
+            </div>
+
+            <div className="flex items-baseline justify-between border-t border-border pt-4">
+              <dt className="font-display text-base font-extrabold text-card-foreground">Total</dt>
+              <dd className="font-display text-2xl font-extrabold tabular-nums text-card-foreground">
+                {formatPrice(totalPrice)}
+              </dd>
+            </div>
+          </dl>
+
+          {/* Free delivery nudge */}
+          <p className="mt-4 flex items-start gap-2.5 rounded-md bg-primary-soft px-3.5 py-3 text-[13px] leading-relaxed text-foreground">
+            <FontAwesomeIcon icon={faTruckFast} className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+            {qualifiesForFreeDelivery
+              ? "Great news — this order qualifies for free local delivery."
+              : `Add ${formatPrice(remainingForFreeDelivery)} more for free local delivery.`}
+          </p>
+
+          <button
+            type="button"
+            onClick={handleWhatsAppOrder}
+            className="mt-5 flex h-12 w-full items-center justify-center gap-2.5 rounded-md bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            <FontAwesomeIcon icon={faWhatsapp} className="h-4 w-4" />
+            Order on WhatsApp
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("home")}
+            className="mt-2.5 flex h-11 w-full items-center justify-center gap-2 rounded-md border border-border text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+          >
+            Continue shopping
+          </button>
+
+          <p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground">
+            No online payment needed. We confirm every order on WhatsApp before dispatch.
+          </p>
+        </aside>
       </div>
     </section>
   );

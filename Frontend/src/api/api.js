@@ -1,98 +1,76 @@
-const API_URL = "http://localhost:1337/api"; 
+// Base URL of the Strapi backend. Override with VITE_API_BASE_URL in a .env file.
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:1337").replace(/\/$/, "");
+const API_URL = `${BASE_URL}/api`;
 
+/** Resolve a Strapi media path into an absolute URL. */
+const resolveImageUrl = (path) => {
+  if (!path) return null;
+  return path.startsWith("http") ? path : `${BASE_URL}${path}`;
+};
 
+/** Normalise a raw Strapi product record into the shape the UI expects. */
 const mapProduct = (item) => {
-  
-  console.log("Processing product item:", item);
+  if (!item || !item.id) return null;
 
-  // Validate item
-  if (!item || !item.id) {
-    console.warn("Invalid product item (missing id):", item);
-    return null;
-  }
+  const stock = item.stock ?? 0;
+  const numericStock = typeof stock === "number" ? stock : null;
+  const inStock = typeof stock === "boolean" ? stock : (numericStock ?? 0) > 0;
 
   return {
     id: item.id,
-    name: item.name || "Unnamed Product", // Direct access to root-level name
-    price: item.Price ?? 0, // Direct access to root-level Price
-    stock: item.stock ?? 0, // Direct access to root-level stock
+    name: item.name || "Unnamed product",
+    description: item.description || "",
+    price: item.Price ?? 0,
+    unit: item.unit || "",
+    stock,
+    numericStock,
+    inStock,
     status: item.stat || "available",
-    image: item.Image?.[0]?.url
-      ? `http://localhost:1337${item.Image[0].url}` // Handle Image as array
-      : null,
-    category: item.category || "Uncategorized", // Direct access to root-level category
-    inStock: (item.stock ?? 0) > 0,
-    stockDisplay: (item.stock ?? 0) > 0 ? `${item.stock} left` : "Out of Stock",
+    image: resolveImageUrl(item.Image?.[0]?.url),
+    category: item.category || "Uncategorized",
   };
 };
 
-//Fetch all products
+/** Fetch every product in the catalogue. */
 export const fetchProducts = async () => {
-  try {
-    const res = await fetch(`${API_URL}/products?populate=*`);
-    if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
-    const data = await res.json();
-    console.log("Products API response:", JSON.stringify(data, null, 2)); // Detailed debug
-    return (data.data || [])
-      .map((item, index) => {
-        console.log(`Mapping product at index ${index}:`, item);
-        return mapProduct(item);
-      })
-      .filter((item) => item !== null);
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    return [];
-  }
+  const res = await fetch(`${API_URL}/products?populate=*`);
+  if (!res.ok) throw new Error(`Failed to fetch products (${res.status})`);
+  const data = await res.json();
+  return (data.data || []).map(mapProduct).filter(Boolean);
 };
 
-// Fetch products by category
+/** Fetch products belonging to a single category. */
 export const fetchProductsByCategory = async (category) => {
-  try {
-    const res = await fetch(
-      `${API_URL}/products?filters[category][$eq]=${encodeURIComponent(category)}&populate=*`
-    );
-    if (!res.ok) throw new Error(`Failed to fetch products by category: ${res.status}`);
-    const data = await res.json();
-    console.log(`Products by category (${category}) API response:`, JSON.stringify(data, null, 2)); // Detailed debug
-    return (data.data || [])
-      .map((item, index) => {
-        console.log(`Mapping product at index ${index} for category ${category}:`, item);
-        return mapProduct(item);
-      })
-      .filter((item) => item !== null);
-  } catch (error) {
-    console.error(`Error fetching products by category (${category}):`, error);
-    return [];
-  }
+  const res = await fetch(
+    `${API_URL}/products?filters[category][$eq]=${encodeURIComponent(category)}&populate=*`
+  );
+  if (!res.ok) throw new Error(`Failed to fetch products for "${category}" (${res.status})`);
+  const data = await res.json();
+  return (data.data || []).map(mapProduct).filter(Boolean);
 };
 
-// Fetch all categories 
-export const fetchCategories = async () => {
-  try {
-    const res = await fetch(`${API_URL}/products?fields=category`);
-    if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`);
-    const data = await res.json();
-    console.log("Categories API response:", JSON.stringify(data, null, 2)); // Detailed debug
+/** Derive the category list (with product counts) from a set of products. */
+export const deriveCategories = (products = []) => {
+  const counts = new Map();
 
-    // Extract unique categories and count occurrences
-    const categoryCounts = {};
-    (data.data || []).forEach((item, index) => {
-      console.log(`Processing category item at index ${index}:`, item);
-      if (item?.category) {
-        categoryCounts[item.category] = (categoryCounts[item.category] || 0) + 1;
-      } else {
-        console.warn(`Invalid category item at index ${index} (missing category):`, item);
-      }
-    });
-
-    // Transform into array of objects
-    return Object.entries(categoryCounts).map(([name, count]) => ({
-      name,
-      displayName: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize for display
-      count,
-    }));
-  } catch (error) {
-    console.error("Error fetching categories:", error);
-    return [];
+  for (const product of products) {
+    if (!product?.category) continue;
+    counts.set(product.category, (counts.get(product.category) || 0) + 1);
   }
+
+  return [...counts.entries()]
+    .map(([name, count]) => ({
+      name,
+      displayName: name.charAt(0).toUpperCase() + name.slice(1),
+      count,
+    }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+};
+
+/** Fetch the category list straight from the API. */
+export const fetchCategories = async () => {
+  const res = await fetch(`${API_URL}/products?fields=category`);
+  if (!res.ok) throw new Error(`Failed to fetch categories (${res.status})`);
+  const data = await res.json();
+  return deriveCategories(data.data || []);
 };
